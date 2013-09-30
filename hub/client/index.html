@@ -2,7 +2,7 @@
     "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd"> 
 <html> 
     <head> 
-        <title>overview | things seen</title>
+        <title>overview | ALVES</title>
         
 		<link rel="stylesheet" type="text/css" href="../style.css"/>
 		<meta name="viewport" content="width=device-width initial-scale=1.0 minimum-scale=0.05 maximum-scale=1.0 user-scalable=1"/> 
@@ -24,7 +24,6 @@
 		$("#status").html(msg).attr("class",msg);
 	}
 
-		
 	function update() {
 		$.ajax({
 			url:"/data",
@@ -50,34 +49,7 @@
 		}});
 
 		update();
-	});
-	
-	function fwd( path ) {
-		$.ajax({
-			url:"/fwd/"+path,
-			success:function(data){
-			},
-			error:function(xhr,msg,err) {
-				debug("Error requesting (fwd) '"+path+"': "+xhr.responseText );
-			}
-		});
-	}
-
-	function play( what, name ) {
-		fwd( "thing0:4220/play/"+what+"/"+name );
-	}
-
-	$("a.fwd").live( "click",function(e) {
-		var name = $(this).attr("href");
-		fwd(name);
-		e.preventDefault();
-	});
-	
-	function rename( host, oldName ) {
-		var newName = prompt( "Enter a new name for camera/session '"+oldName+"' ("+host+")");
-		if( newName ) fwd( [ host, "name", newName ].join("/") );
-	}
-	
+	});	
 	
 	function ageClass( lastUpdate  ) {
 		var d = ( new Date().getTime() - new Date(lastUpdate).getTime() )/1000;
@@ -104,14 +76,7 @@
 	function rate( fps ) {
 		return(""+( Math.round(fps*10)/10 ));
 	}
-	
-	function stopRecord( host, port ) {
-		/*
-		debug("should stop recording of "+host+":"+port );
-		fwd( host+":"+port+"/close?t=0&name=#force");
-		*/
-	}
-		
+			
 		</script>
 
  		<script id="t_rate" type="text/x-jquery-tmpl">
@@ -171,66 +136,6 @@
  				</td>
 				{{tmpl(services) "#t_service"}}
  			</tr>
-		</script>
-		<script id="foo" type="text/x-jquery-tmpl">
-
-				
-				{{if camera}}{{tmpl(camera) "#t_camera"}}{{/if}}
-				{{if recorder}}{{tmpl(recorder) "#t_recorder"}}{{/if}}
-				
-				{{if hub}}{{tmpl(hub) "#t_hub"}}{{/if}}
-				{{if datahub}}{{tmpl(datahub) "#t_datahub"}}{{/if}}
-
-
- 			<table>
- 				<tr>
- 					<th>Host</th>
- 					<th>Name</th>
- 					<th>Status</th>
- 					<th>f/s</th>
- 					<th>bit/s</th>
- 				</tr>
-	 			{{each cameras}}
-	 				<tr>
-	 					<td>${host}:${port}</td>
-	 					<td><a href="javascript:rename('${host}:${port}','${name}')">${name}</a></td>
-	 					<td class="${status}">${status}</td>
-	 					{{if lastUpdate && fps && Bps }}
-		 					<td class="${ageClass()}">${rate(fps)}</td>
-		 					<td class="${ageClass()}">${bytes(Bps*8)}</td>
-		 				{{/if}}
-	 				</tr>
-	 			{{/each}}
-	 			{{each recorder}}
-	 				<tr>
-	 					<td>${host}:${port}</td>
-	 					<td>${name}</td>
-	 					{{if recording}}
-		 					<td class="REC">REC</td>
-	 					{{else}}
-		 					<td class="${status}">${status}</td>
- 						{{/if}}
-	 					{{if lastUpdate && fps && Bps }}
-		 					<td class="${ageClass()}">${rate(fps)}</td>
-		 					<td class="${ageClass()}">${bytes(Bps*8)}</td>
-		 				{{/if}}
-	 				</tr>
-	 			{{/each}}
-	 			{{each displays}}
-	 				<tr>
-	 					<td>${host}:${port}</td>
-	 					<td>${name}</td>
-	 					<td class="${status}">${status}</td>
-	 				</tr>
-	 			{{/each}}
-	 			{{each hubs}}
-	 				<tr>
-	 					<td>${host}:${port}</td>
-	 					<td>${name}</td>
-	 					<td class="${status}">${status}</td>
-	 				</tr>
-	 			{{/each}}
-	 		</table>
 		</script>
 
     </head> 

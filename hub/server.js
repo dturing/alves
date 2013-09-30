@@ -103,12 +103,6 @@ connect.createServer(
 			app.get("/data", function(req,res,next){
 				reply(res,JSON.stringify(appData));
 			});
-			app.get("/scripts-from-google", function(req,res,next){
-				exec("../gdoc/getList",function(err,stdout,stderr){
-					if(err) throw("error executing ../gdoc/getList: "+err);
-					reply(res,stdout);
-				});
-			});
 			app.get("/scripts/:dpy", function(req,res,next){
 				fs.readdir("../scripts/"+req.params.dpy, function(err,files) {
 					if( err ) {
@@ -118,19 +112,6 @@ connect.createServer(
 						reply( res, files.join("\n") );
 				});
 			});
-			/*
-			app.get("/scripts", function(req,res,next){
-				fs.readdir("../scripts/", function(err,files) {
-					if(err) throw(err);
-					var f=[];
-					for( i in files ) {
-						var file = files[i].split(".");
-						if( file[0]!="" && file[file.length-1]=="csv" ) f.push(files[i]);
-					}
-					reply(res,JSON.stringify(f));
-				});
-			});
-			*/
 			app.get("/fwd/:host\::port/*", function(req,res,next){
 				var rq = url.parse(req.url,true);
 				var client = http.createClient( req.params.port, req.params.host );
