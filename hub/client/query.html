@@ -1,0 +1,450 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+    "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd"> 
+<html> 
+    <head> 
+        <title>query | things seen</title>
+        
+		<link rel="stylesheet" type="text/css" href="../style.css"/>
+		<meta name="viewport" content="width=device-width initial-scale=1.0 minimum-scale=0.05 maximum-scale=1.0 user-scalable=1"/> 
+		<meta content="yes" name="apple-mobile-web-app-capable" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black">
+		
+	    <script type="text/javascript" src="lib/jquery.js"></script>
+		<script type="text/javascript" src="lib/jquery.tmpl.min.js"></script>
+
+		<script type="text/javascript">
+
+	function debug( msg ) {
+		$("#debug").append( "<div>"+msg.split("\n").join("<br>")+"</div>" );
+		$("#debug").scrollTop( $("#debug")[0].scrollHeight );	
+	}
+
+	function status(msg) {
+		msg = msg || "";
+		$("#status").html(msg).attr("class",msg);
+	}
+
+	function doQuery(query) {
+		$("#clips").empty();
+		var url = "datahub.lan:4201/query?"+query;
+		$.ajax({
+			url:"/fwd/"+url,
+			dataType:"json",
+			success:function(data){
+				$("#clips").empty().append( $("#t_clips").tmpl(data) );
+				$("#result-count").html( ""+data.clips.length );
+				$("#query-dbg").html( ""+query.split("&").join(" ") );
+				$("#rename-query").html( ""+query.split("&").join(" ") );
+
+				var dur = 0;
+				for( i in data.clips ) {
+					dur+=parseInt(data.clips[i].duration);
+				}
+				$("#result-duration").html( ""+Math.round(dur/3)/10 );
+//				setTimeout( function(){updateCamera(cam)}, 1000 );
+			},
+			error:function(xhr,msg,err) {
+				debug("Query errored: "+xhr.status+", "+msg+", "+err);
+			}
+		});
+	}
+
+	function loadScriptList() {
+		var url = "/scripts";
+		$.ajax({
+			url:url,
+			dataType:"text",
+			success:function(tx){
+				var options = "";
+				var data = tx.split("\n");
+				for( i in data ) {
+					var d = data[i].split(":");
+					if( d.length==3 && d[1]=="spreadsheet" )
+						options += "<option value='"+d[2]+"'>"+d[0]+"</option>";
+				}
+				$("#scriptSelect").empty().append( options );
+			},
+			error:function(xhr,msg,err) {
+				debug("Query errored: "+xhr.status+", "+msg+", "+err);
+			}
+		});
+	}
+
+	function getQuery() {
+		var Q = $("#q_query").val();
+		var q = Q==""?[]:Q.split(" ");
+		
+		$(".queryValue").each(function(){
+			var v = $(this).val();
+			if( v ) q.push($(this).attr("name")+"="+v);
+		});
+		return q;
+	}
+	function submitQuery() {
+		doQuery( getQuery().join("&"));
+	}
+	function playQuery() {
+		doQuery( getQuery().join("&"));
+		play("query",getQuery().join("/") );
+	}
+
+	function submitRename() {
+		var query = $("#rename-query").html();
+		var newname = $("#rename-session").val();
+		
+		if( query=="-" ) {
+			alert("Please define a query before renaming.");
+		} else if( newname=="" ) {
+			alert("Please define a new session name.");
+		} else {
+			if( !confirm( "You are about to rename all clips that match the query, wich might be more than what you see here. Continue?" )) {
+				return;
+			}
+
+			fwd("localhost:4201/batchrename/"+newname+"?"+(query.split(" ").join("&")),function(){
+				submitQuery();
+			});
+		}
+	}
+		
+	$(document).ready(function(){
+		$("#q_submit").click( function(e) { 
+			e.preventDefault();
+			submitQuery()
+			});
+		$("#q_submit_play").click( function(e) { 
+			e.preventDefault();
+			playQuery()
+			});
+
+		$("#r_submit").click( function(e) { 
+			e.preventDefault();
+			submitRename()
+			});
+
+/*		loadScriptList();
+		$("#playForm").submit( function(e) { 
+			e.preventDefault();
+			play("gdoc",$("#scriptSelect").val() );
+			});
+			*/
+	});
+	
+	function fwd( path, onSuccess ) {
+		$.ajax({
+			url:"/fwd/"+path,
+			success:function(data){
+				if( onSuccess ) onSuccess();
+			},
+			error:function(xhr,msg,err) {
+				debug("Error requesting (fwd) '"+path+"': "+xhr.responseText );
+			}
+		});
+	}
+
+	function play( what, name ) {
+		fwd( "localhost:4220/"+what+"/"+name );
+	}
+
+	function move( id, oldName ) {
+		var newName = prompt( "New session for clip '"+oldName+"' ("+id+")");
+		if( newName ) moveTo( id, oldName, newName );
+	}
+
+	function moveTo( id, oldName, newName ) {
+		fwd( [ "localhost:4201", "rename", id, newName ].join("/"), submitQuery );
+	}
+
+	function dateFormat( t ) {
+		var d = new Date(t*1000);
+		
+		return( d.getYear()+"-"+d.getMonth()+"-"+d.getDate()+" "+d.getHours()+":"+d.getMinutes()+":"+d.getSeconds() );
+	}
+	
+	function toggleSelect( row ) {
+		if( $(row).hasClass("selected") ) {
+			$(row).removeClass("selected");
+		} else {
+			$(row).addClass("selected");
+		}
+		return false;
+	}
+	
+	function selectAll( ) {
+		$(".cliprow").addClass("selected");
+
+		if(!e) var e = window.event;
+		e.preventDefault();
+		return false;
+	}
+	function deselectAll( ) {
+		$(".cliprow").removeClass("selected");
+
+		if(!e) var e = window.event;
+		e.preventDefault();
+		return false;
+	}
+	
+	function renameSelected() {
+		var n = $(".selected").size();
+		if( n>0 ) {
+			var newName = prompt( "New session for "+n+" selected clips: ");
+			if( newName ) {
+				$(".selected").each( function(i,e) {
+					moveTo( e.id, "[dunno]", newName );
+				});
+			}
+		} else {
+			alert("Please select some clips first.");
+		}
+		if(!e) var e = window.event;
+		e.preventDefault();
+		return false;
+	}
+		
+		</script>
+
+ 
+ 		<script id="t_clips" type="text/x-jquery-tmpl">
+			<table>
+				<tr>
+					<th></th>
+					<th>Session</th>
+					<th>Camera</th>
+					<th>Trigger</th>
+					<th>Date</th>
+					<th>Duration</th>
+				</tr>
+	 			{{each clips}}
+				<tr class="cliprow" onmousedown="toggleSelect(this,${id})" id="${id}">
+					<td>
+						<a href="javascript:play('file','${filename}')">
+							<img width="40" height="30" src="${filename}.jpg"/>
+						</a>
+					</td>
+					<td>
+<!--						<a href="javascript:move('${id}','${filename}')"></a> -->
+						${session}
+					</td>
+					<td>${camera}</td>
+					<td>${trig}</td>
+					<td>
+						${readable_date}
+					</td>
+					<td>
+						${Math.round(duration/2.5)/10}s
+					</td>
+					<!--
+					<td>
+						<a href="javascript:move('${id}','data/${filename}')">move</a>
+						<a href="javascript:moveTo('${id}','data/${filename}','trash')">delete</a>
+					</td>
+					-->
+				</tr>
+				{{/each}}
+			</table>
+ 		</script>
+    </head> 
+ 
+    <body> 
+    	<div class="column">
+			<h1>Query</h1>
+			
+			<form id="queryForm">
+				<table>
+					<tr style="display:none;">
+						<td class="label">
+							Query
+						</td>
+						<td colspan="4">
+							<input type="text" id="q_query" size="50" maxsize="255" value="" />
+						</td>
+					</tr>
+					<tr>
+						<td class="label">
+							Session
+						</td>
+						<td colspan="2">
+							<input type="text" class="queryValue" size="10" name="session" value="" />
+						</td>
+					</tr>
+					<tr>
+						<td class="label">
+							Camera
+						</td>
+						<td colspan="2">
+							<input type="text" class="queryValue" size="10" name="camera" value="" />
+						</td>
+					</tr>
+					<tr>
+						<td class="label">
+							Trigger
+						</td>
+						<td colspan="2">
+							<input type="text" class="queryValue" size="10" name="trig" value="" />
+						</td>
+					</tr>
+					<tr>
+						<td class="label">
+							Duration
+						</td>
+						<td colspan="2">
+							<input type="text" class="queryValue" size="2" name="longer-than" value="" />
+							to
+							<input type="text" class="queryValue" size="2" name="shorter-than" value="" />
+							seconds
+						</td>
+					</tr>
+					<tr>
+						<td class="label">
+							Age
+						</td>
+						<td colspan="2">
+							<input type="text" class="queryValue" size="2" name="older-than" value="" />
+							to
+							<input type="text" class="queryValue" size="2" name="newer-than" value="" />
+							minutes
+						</td>
+					</tr>
+					<tr>
+						<td class="label">
+							after
+						</td>
+						<td colspan="2">
+							<input type="text" class="queryValue" size="15" name="after" value="" />
+						</td>
+					</tr>
+					<tr>
+						<td class="label">
+							before
+						</td>
+						<td colspan="2">
+							<input type="text" class="queryValue" size="15" name="before" value="" />
+						</td>
+					</tr>
+					<tr>
+						<td class="label">
+							Order by
+						</td>
+						<td>
+							<select class="queryValue" name="order">
+								<option value="date">Time</option>
+								<option value="duration">Duration</option>
+								<option value="random">Random</option>
+							</select>
+							<select class="queryValue" name="asc">
+								<option value="desc">descending</option>
+								<option value="asc">ascending</option>
+							</select>
+						</td>
+					</tr>
+					<tr>
+						<td class="label">
+							Limit
+						</td>
+						<td>
+							<input type="text" class="queryValue" size="2" name="limit" value="" />
+						</td>
+					</tr>
+					<tr>
+						<td class="label">
+						</td>
+						<td>
+							<input class="submit" type="submit" value="Query" id="q_submit"/>
+							<input class="submit" type="submit" value="Play" id="q_submit_play"/>
+						</td>
+					</tr>
+				</table>
+			</form>
+
+<!--
+			<h1>Batch Rename</h1>
+			
+			<form id="renameForm">
+				<table>
+					<tr style="display:none">
+						<td class="label">
+							Query
+						</td>
+						<td>
+							<span id="rename-query">-</span>
+						</td>
+					</tr>
+					<tr>
+						<td class="label">
+							New Session
+						</td>
+						<td>
+							<input id="rename-session" type="text" size="10" name="new-session" value="" />
+						</td>
+					</tr>
+					<tr>
+						<td class="label">
+						</td>
+						<td>
+							<input class="submit" type="submit" value="Rename" id="r_submit"/>
+						</td>
+					</tr>
+				</table>
+			</form>
+-->
+			<h1>Rename Selected</h1>
+			<form id="renameForm">
+				<table>
+					<tr>
+						<td class="label">
+						</td>
+						<td>
+							<input class="submit" type="submit" value="Select All" onclick="selectAll()"/>
+							<input class="submit" type="submit" value="Deselect All" onclick="deselectAll()"/>
+						</td>
+					</tr>
+					<tr>
+						<td class="label">
+						</td>
+						<td>
+							<input class="submit" type="submit" value="Rename Selected" onclick="renameSelected()"/>
+						</td>
+					</tr>
+				</table>
+			</form>
+
+<!--			
+			
+			<h1>Play Sequence (from Google)</h1>
+			<form id="playForm">
+				<table>
+					<tr>
+						<td class="label">
+							Sequence
+						</td>
+						<td>
+							<select id="scriptSelect" name="script">
+							</select>
+
+							<input class="submit" type="submit" value="Play" name="p_submit"/>
+						</td>
+					</tr>
+				</table>
+			</form>
+-->
+		</div>
+
+		<div class="column">
+			<h1>Result</h1>
+
+			<tt><span id="query-dbg">-</span></tt><br/>
+			<span id="result-count">-</span> results, totalling <span id="result-duration">-</span>s.<br/>
+			
+			<div id="clips">
+			</div>
+			
+		</div>
+		
+		<div id="debug">
+		</div>
+		<div id="status">
+		</div>
+	</body>	
+</html>
+

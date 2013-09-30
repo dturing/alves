@@ -1,0 +1,252 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+    "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd"> 
+<html> 
+    <head> 
+        <title>overview | things seen</title>
+        
+		<link rel="stylesheet" type="text/css" href="../style.css"/>
+		<meta name="viewport" content="width=device-width initial-scale=1.0 minimum-scale=0.05 maximum-scale=1.0 user-scalable=1"/> 
+		<meta content="yes" name="apple-mobile-web-app-capable" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+	    <script type="text/javascript" src="lib/jquery.js"></script>
+		<script type="text/javascript" src="lib/jquery.tmpl.min.js"></script>
+
+		<script type="text/javascript">
+
+	function debug( msg ) {
+		$("#debug").append( "<div>"+msg.split("\n").join("<br>")+"</div>" );
+		$("#debug").scrollTop( $("#debug")[0].scrollHeight );	
+	}
+
+	function status(msg) {
+		msg = msg || "";
+		$("#status").html(msg).attr("class",msg);
+	}
+
+		
+	function update() {
+		$.ajax({
+			url:"/data",
+			dataType:"json",
+			success:function(data){
+				status("ok");
+				$("#data").empty().append( $("#t_data").tmpl(data.nodes) );
+				setTimeout( update, 250 );
+			},
+			error:function(xhr,msg,err) {
+			  	$("#data").empty();
+			  	status("offline");
+				setTimeout( update, 1000 );
+			}
+		});
+	}
+
+	$(document).ready(function(){
+
+		$.ajaxSetup({
+		  "error":function() {   
+		  	debug("ajax error not properly handled");
+		}});
+
+		update();
+	});
+	
+	function fwd( path ) {
+		$.ajax({
+			url:"/fwd/"+path,
+			success:function(data){
+			},
+			error:function(xhr,msg,err) {
+				debug("Error requesting (fwd) '"+path+"': "+xhr.responseText );
+			}
+		});
+	}
+
+	function play( what, name ) {
+		fwd( "thing0:4220/play/"+what+"/"+name );
+	}
+
+	$("a.fwd").live( "click",function(e) {
+		var name = $(this).attr("href");
+		fwd(name);
+		e.preventDefault();
+	});
+	
+	function rename( host, oldName ) {
+		var newName = prompt( "Enter a new name for camera/session '"+oldName+"' ("+host+")");
+		if( newName ) fwd( [ host, "name", newName ].join("/") );
+	}
+	
+	
+	function ageClass( lastUpdate  ) {
+		var d = ( new Date().getTime() - new Date(lastUpdate).getTime() )/1000;
+		if( d<5 ) {
+			return "newData";
+		} else if( d<15 ) {
+			return "recentData";
+		} else {
+			return "oldData";
+		}
+	}
+	
+	var k = 1024;
+	var M = k*k;
+	function bytes( v ) {
+		if( v>M ) {
+			return( ""+(Math.round((v/M)*10)/10)+" M" );
+		} else if( v>k ) {
+			return( ""+(Math.round((v/k)*10)/10)+" k" );
+		} else {
+			return( ""+v+" " );
+		}
+	}
+	function rate( fps ) {
+		return(""+( Math.round(fps*10)/10 ));
+	}
+	
+	function stopRecord( host, port ) {
+		/*
+		debug("should stop recording of "+host+":"+port );
+		fwd( host+":"+port+"/close?t=0&name=#force");
+		*/
+	}
+		
+		</script>
+
+ 		<script id="t_rate" type="text/x-jquery-tmpl">
+ 			{{if lastUpdate}}
+				<div class="rate ${ageClass(lastUpdate)}">${rate(fps)} f/s</div>
+	 			{{if Bps}}
+					<div class="rate ${ageClass(lastUpdate)}">${bytes(Bps*8)}bit/s</div>
+				{{/if}}
+	 			{{if resolution}}
+					<div class="rate ${ageClass(lastUpdate)}">${resolution} px</div>
+				{{/if}}
+			{{/if}}
+ 		</script>
+
+ 		<script id="t_camera" type="text/x-jquery-tmpl">
+	 			<div>${driver}:${device}&rarr;:${signalPort}</div>
+			{{tmpl "#t_rate"}}
+
+		</script> 
+
+ 		<script id="t_recorder" type="text/x-jquery-tmpl">
+			{{if recording}}
+				<div class="status REC" onclick="stopRecord('${host}',${port})">REC</div>
+			{{/if}}
+			{{tmpl "#t_rate"}}
+ 		</script>
+
+ 		<script id="t_audio" type="text/x-jquery-tmpl">
+			{{if recording}}
+				<div class="status REC" onclick="stopRecord('${host}',${port})">REC</div>
+			{{/if}}
+			{{tmpl "#t_rate"}}
+ 		</script>
+
+ 		<script id="t_display" type="text/x-jquery-tmpl">
+			{{tmpl "#t_rate"}}
+			{{each playing}}
+				<div>${$index}: ${$value}</div>
+			{{/each}}
+		</script> 
+
+ 		<script id="t_service" type="text/x-jquery-tmpl">
+ 			<td class="service">
+	 			<div class="status ${status}">${status}</div>
+	 			<div>${service}:${port}</div>
+	 			{{if service=="camera"}}{{tmpl "#t_camera"}}{{/if}}
+	 			{{if service=="recorder"}}{{tmpl "#t_recorder"}}{{/if}}
+	 			{{if service=="audio"}}{{tmpl "#t_audio"}}{{/if}}
+	 			{{if service=="display"}}{{tmpl "#t_display"}}{{/if}}
+			</td>
+ 		</script>
+
+ 		<script id="t_data" type="text/x-jquery-tmpl">
+ 			<tr class="host">
+ 				<td class="title">
+ 					${host}
+ 				</td>
+				{{tmpl(services) "#t_service"}}
+ 			</tr>
+		</script>
+		<script id="foo" type="text/x-jquery-tmpl">
+
+				
+				{{if camera}}{{tmpl(camera) "#t_camera"}}{{/if}}
+				{{if recorder}}{{tmpl(recorder) "#t_recorder"}}{{/if}}
+				
+				{{if hub}}{{tmpl(hub) "#t_hub"}}{{/if}}
+				{{if datahub}}{{tmpl(datahub) "#t_datahub"}}{{/if}}
+
+
+ 			<table>
+ 				<tr>
+ 					<th>Host</th>
+ 					<th>Name</th>
+ 					<th>Status</th>
+ 					<th>f/s</th>
+ 					<th>bit/s</th>
+ 				</tr>
+	 			{{each cameras}}
+	 				<tr>
+	 					<td>${host}:${port}</td>
+	 					<td><a href="javascript:rename('${host}:${port}','${name}')">${name}</a></td>
+	 					<td class="${status}">${status}</td>
+	 					{{if lastUpdate && fps && Bps }}
+		 					<td class="${ageClass()}">${rate(fps)}</td>
+		 					<td class="${ageClass()}">${bytes(Bps*8)}</td>
+		 				{{/if}}
+	 				</tr>
+	 			{{/each}}
+	 			{{each recorder}}
+	 				<tr>
+	 					<td>${host}:${port}</td>
+	 					<td>${name}</td>
+	 					{{if recording}}
+		 					<td class="REC">REC</td>
+	 					{{else}}
+		 					<td class="${status}">${status}</td>
+ 						{{/if}}
+	 					{{if lastUpdate && fps && Bps }}
+		 					<td class="${ageClass()}">${rate(fps)}</td>
+		 					<td class="${ageClass()}">${bytes(Bps*8)}</td>
+		 				{{/if}}
+	 				</tr>
+	 			{{/each}}
+	 			{{each displays}}
+	 				<tr>
+	 					<td>${host}:${port}</td>
+	 					<td>${name}</td>
+	 					<td class="${status}">${status}</td>
+	 				</tr>
+	 			{{/each}}
+	 			{{each hubs}}
+	 				<tr>
+	 					<td>${host}:${port}</td>
+	 					<td>${name}</td>
+	 					<td class="${status}">${status}</td>
+	 				</tr>
+	 			{{/each}}
+	 		</table>
+		</script>
+
+    </head> 
+ 
+    <body> 
+		<table id="data">
+		</table>    	
+
+		<div id="footer">
+			see also: <a href="query.html">Query</a>, <a href="display.html">Displays</a>, <a href="control.html">Camera Control</a>, <a href="show.html">Show Control</a>
+		</div>
+
+		<div id="debug">
+		</div>
+		<div id="status">
+		</div>
+	</body>	
+</html>
+

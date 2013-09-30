@@ -1,0 +1,142 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+    "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd"> 
+<html> 
+    <head> 
+        <title>control | things seen</title>
+        
+		<link rel="stylesheet" type="text/css" href="../style.css"/>
+		<meta name="viewport" content="width=device-width initial-scale=1.0 minimum-scale=0.05 maximum-scale=1.0 user-scalable=1"/> 
+		<meta content="yes" name="apple-mobile-web-app-capable" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+	    <script type="text/javascript" src="lib/jquery.js"></script>
+		<script type="text/javascript" src="lib/jquery.tmpl.min.js"></script>
+
+		<script type="text/javascript">
+
+	function debug( msg ) {
+		$("#debug").append( "<div>"+msg.split("\n").join("<br>")+"</div>" );
+		$("#debug").scrollTop( $("#debug")[0].scrollHeight );	
+	}
+
+	function status(msg) {
+		msg = msg || "";
+		$("#status").html(msg).attr("class",msg);
+	}
+
+	function fwd( path ) {
+		$.ajax({
+			url:"/fwd/"+path,
+			success:function(data){
+			},
+			error:function(xhr,msg,err) {
+				debug("Error requesting (fwd) '"+path+"': "+xhr.responseText );
+			}
+		});
+	}
+
+	function play( host, what, name ) {
+		fwd( host+":4220/"+what+"/"+name );
+	}
+
+	var keys = {};
+	
+	$(document).ready(function(){
+
+		$.ajaxSetup({
+		  "error":function() {   
+		  	debug("ajax error not properly handled");
+		}});
+
+		$(".keyTrigger").each( function(i,e) {
+			var key = $(e).html().trim();
+			var host = $(e).attr("id");
+			keys[key] = host;
+//			debug("Key "+key+" host "+host);
+		});
+		
+		$("body").keydown( function(e) {
+			var host = keys[String.fromCharCode(e.which).toLowerCase()];
+//			debug("Key "+String.fromCharCode(e.which)+" host "+host);
+			if( host ) {
+				var e = $("#"+host);
+				if( e.hasClass("triggered") ) {
+					e.removeClass("triggered");
+					fwd( host+":4230/close?t=now+0.02&name=keyboard" );
+					fwd( host+":4231/close?t=now+0.02&name=keyboard" );
+				} else {
+					e.addClass("triggered");
+					fwd( host+":4230/open?t=now+0.02&name=keyboard" );
+					fwd( host+":4231/open?t=now+0.02&name=keyboard" );
+				}
+			}
+		});
+
+
+		loadScriptList("/scripts/D","#scripts_D");
+		$("#playForm_D").submit( function(e) { 
+			e.preventDefault();
+			play("y","seq","D/"+$("#scripts_D").val() );
+			});
+
+	});
+
+	function loadScriptList(url,to) {
+		$.ajax({
+			url:url,
+			dataType:"text",
+			success:function(tx){
+				var options = "";
+				var data = tx.split("\n").sort();
+				for( i in data ) {
+					if( data[i].trim().length>0 ) {
+						var n = data[i].split("."); n.pop();
+						options += "<option value='"+data[i]+"'>"+n.join(".")+"</option>";
+					}
+				}
+				$(to).empty().append( options );
+			},
+			error:function(xhr,msg,err) {
+				debug("Query errored: "+xhr.status+", "+msg+", "+err);
+			}
+		});
+	}
+
+
+		</script>
+
+    </head> 
+ 
+    <body> 
+		<table>
+ 			<tr>
+	 			<td>
+	 				<div class="keyTrigger" id="y">
+						y
+					</div>
+				</td>
+	 			<td>
+	 				<div class="keyTrigger" id="thing1a">
+						1
+					</di1v>
+				</td>
+	 			<td>
+	 				<div class="keyTrigger" id="thing2a">
+						2
+					</div>
+				</td>
+	 			<td>
+	 				<div class="keyTrigger" id="thing3a">
+						3
+					</div>
+				</td>
+			</tr>
+		</table>
+
+		<div id="debug">
+		</div>
+		<div id="status">
+		</div>
+	</body>	
+</html>
+

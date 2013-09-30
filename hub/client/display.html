@@ -1,0 +1,288 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+    "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd"> 
+<html> 
+    <head> 
+        <title>displays | things seen</title>
+        
+		<link rel="stylesheet" type="text/css" href="../style.css"/>
+		<meta name="viewport" content="width=device-width initial-scale=1.0 minimum-scale=0.05 maximum-scale=1.0 user-scalable=1"/> 
+		<meta content="yes" name="apple-mobile-web-app-capable" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+	    <script type="text/javascript" src="lib/jquery.js"></script>
+		<script type="text/javascript" src="lib/jquery.tmpl.min.js"></script>
+
+		<script type="text/javascript">
+		
+	var allDisplays = [];
+
+	function debug( msg ) {
+		$("#debug").append( "<div>"+msg.split("\n").join("<br>")+"</div>" );
+		$("#debug").scrollTop( $("#debug")[0].scrollHeight );	
+	}
+
+	function status(msg) {
+		msg = msg || "";
+		$("#status").html(msg).attr("class",msg);
+	}
+
+	function updateMeta() {
+		$.ajax({
+			url:"/data",
+			dataType:"json",
+			success:function(data){
+				status("ok");
+				$("#meta").empty().append( $("#t_meta").tmpl(data.nodes) );
+				allDisplays = [];
+				for( n in data.nodes ) {
+					var node = data.nodes[n];
+					for( s in node.services ) {
+						var service = node.services[s];
+						if( service.service == "display" ) {
+							allDisplays.push({"host":node.host,"port":service.port,"name":service.display_name});
+						}
+					}
+				}
+			//	setTimeout( update, 250 );
+			},
+			error:function(xhr,msg,err) {
+			  	$("#meta").empty();
+			  	status("offline");
+				setTimeout( update, 1000 );
+			}
+		});
+	}
+
+	function update() {
+		$.ajax({
+			url:"/data",
+			dataType:"json",
+			success:function(data){
+				status("ok");
+				$("#data").empty().append( $("#t_data").tmpl(data.nodes) );
+				setTimeout( update, 250 );
+			},
+			error:function(xhr,msg,err) {
+			  	$("#data").empty();
+			  	status("offline");
+				setTimeout( update, 1000 );
+			}
+		});
+	}
+
+	$(document).ready(function(){
+
+		$.ajaxSetup({
+		  "error":function() {   
+		  	debug("ajax error not properly handled");
+		}});
+
+		updateMeta();
+		update();
+	});
+	
+	function fwd( path ) {
+		$.ajax({
+			url:"/fwd/"+path,
+			success:function(data){
+			},
+			error:function(xhr,msg,err) {
+				debug("Error requesting (fwd) '"+path+"': "+xhr.responseText );
+			}
+		});
+	}
+
+	function play( what, name ) {
+		fwd( "y:4220/play/"+what+"/"+name );
+	}
+
+	$("a.fwd").live( "click",function(e) {
+		var name = $(this).attr("href");
+		fwd(name);
+		e.preventDefault();
+	});
+	
+	function rename( host, oldName ) {
+		var newName = prompt( "Enter a new name for camera/session '"+oldName+"' ("+host+")");
+		if( newName ) fwd( [ host, "name", newName ].join("/") );
+	}
+	
+
+	function limitClass( fps, limit  ) {
+		return( fps<limit?"tooLow":"" );
+	}
+	
+	function ageClass( lastUpdate  ) {
+		var d = ( new Date().getTime() - new Date(lastUpdate).getTime() )/1000;
+		if( d<5 ) {
+			return "newData";
+		} else if( d<15 ) {
+			return "recentData";
+		} else {
+			return "oldData";
+		}
+	}
+	
+	var k = 1024;
+	var M = k*k;
+	function bytes( v ) {
+		if( v>M ) {
+			return( ""+(Math.round((v/M)*10)/10)+" M" );
+		} else if( v>k ) {
+			return( ""+(Math.round((v/k)*10)/10)+" k" );
+		} else {
+			return( ""+v+" " );
+		}
+	}
+	function rate( fps ) {
+		return(""+( Math.round(fps*10)/10 ));
+	}
+
+	function timeOfDay( t ) {
+		var t = new Date(t);
+		return( t.toTimeString().split(" ")[0] );
+	}
+	
+	
+	function setDisplay( host, port, input ) {
+		var cmd = $(input).val();
+		fwd(""+host+":"+port+"/"+escape(cmd));
+	}
+	
+	function choose( host, port, dpy ) {
+		var cmd = $("#"+dpy+"_select").val();
+		fwd(""+host+":"+port+"/"+escape(cmd));
+		$("#"+dpy+"_input").val(cmd);
+	}
+
+	function set( host, port, dpy, cmd ) {
+		fwd(""+host+":"+port+"/"+escape(cmd));
+		$("#"+dpy+"_input").val(cmd);
+	}
+
+	function set_all( cmd ) {
+		for( d in allDisplays ) {
+			var dpy = allDisplays[d];
+			set( dpy.host, dpy.port, dpy.name, cmd )
+		}
+	}
+
+		</script>
+
+ 		<script id="t_rate" type="text/x-jquery-tmpl">
+ 			{{if lastUpdate}}
+				<div class="dataitem">
+					<span class="${limitClass(fps,24)} ${ageClass(lastUpdate)}">${rate(fps)} f/s
+
+	 			{{if Bps}}
+					<span class="${ageClass(lastUpdate)}">${bytes(Bps*8)}bit/s</span>
+				{{/if}}
+	 			{{if resolution}}
+					<span class="${ageClass(lastUpdate)}">${resolution} px</span>
+				{{/if}}
+				</div>
+			{{/if}}
+ 		</script>
+
+ 		<script id="t_display_meta" type="text/x-jquery-tmpl">
+ 			<td>
+ 				<div class="big">
+					${display_name}
+				</div>
+				<div>
+					${host}:${port}
+				</div>
+				<hr/>
+				<input type="text" size="20" id="${display_name}_input" 
+					onchange="setDisplay('${host}',${port},this)" value="0 "/>
+				
+				<hr/>
+				
+				<select  id="${display_name}_select">
+					<option value="0 mono black">black</option>
+				{{each scripts}}
+					<option value="seq/${display_name}/${$value}">${$value}</option>
+				{{/each}}
+				</select>
+				<input type="submit" value="Play" onclick="choose('${host}','${port}','${display_name}')"/>
+				
+				<hr/>
+
+				<input type="submit" value="Black" onclick="set('${host}','${port}','${display_name}','black')"/>
+				<input type="submit" value="Default" onclick="set('${host}','${port}','${display_name}','restart')"/>
+
+			</td>
+		</script>
+
+ 		<script id="t_display" type="text/x-jquery-tmpl">
+ 			<td style="max-width:200px">
+				{{if untrigger}}
+					<div class="status UNTRIG">playing</div>
+				{{else triggered}}
+					<div class="status TRIG">trigger</div>
+				{{else}}
+					<div class="status IDLE">idle</div>
+				{{/if}}
+
+				{{tmpl "#t_rate"}}
+
+			<!--				
+				<hr/>
+			
+				{{each playing}}
+					{{if $value != "hide"}}
+					<div class="layer">${$index}: ${$value}</div>
+					{{/if}}
+				{{/each}}
+			-->
+				<hr/>
+				
+				{{each msg}}
+					<div class="msg ${type}">
+						{{if thumb}}
+							<img class="playing" src="${thumb}" width="80" height="60"/><br/>
+						{{/if}}
+						<span class="time">${timeOfDay(t)}</span> ${v}
+					</div>
+					<hr/>
+				{{/each}}
+			</td>
+		</script> 
+
+ 		<script id="t_service" type="text/x-jquery-tmpl">
+ 			{{if service=="display"}}{{tmpl "#t_display"}}{{/if}}
+ 		</script>
+ 		<script id="t_service_meta" type="text/x-jquery-tmpl">
+ 			{{if service=="display"}}{{tmpl "#t_display_meta"}}{{/if}}
+ 		</script>
+
+ 		<script id="t_data" type="text/x-jquery-tmpl">
+			{{tmpl(services) "#t_service"}}
+		</script>
+		<script id="t_meta" type="text/x-jquery-tmpl">
+			{{tmpl(services) "#t_service_meta"}}
+		</script>
+		
+    </head> 
+ 
+    <body> 
+				<input type="submit" value="All to Black" onclick="set_all('black')"/>
+				<input type="submit" value="All to Default" onclick="set_all('restart')"/>
+		<table>
+			<tr id="meta">
+			</tr>
+			<tr id="data">
+			</tr>
+		</table>
+
+		<div id="footer">
+			see also: <a href="/">Overview</a>, <a href="query.html">Query</a>
+		</div>
+
+		<div id="debug">
+		</div>
+		<div id="status">
+		</div>
+	</body>	
+</html>
+

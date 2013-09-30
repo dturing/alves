@@ -1,0 +1,69 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+    "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd"> 
+<html> 
+    <head> 
+        <title>show control | things seen</title>
+        
+		<link rel="stylesheet" type="text/css" href="../style.css"/>
+		<meta name="viewport" content="width=device-width initial-scale=1.0 minimum-scale=0.05 maximum-scale=1.0 user-scalable=1"/> 
+		<meta content="yes" name="apple-mobile-web-app-capable" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+	    <script type="text/javascript" src="lib/jquery.js"></script>
+		<script type="text/javascript" src="lib/jquery.tmpl.min.js"></script>
+
+		<script type="text/javascript">
+
+	function debug( msg ) {
+		$("#debug").append( "<div>"+msg.split("\n").join("<br>")+"</div>" );
+		$("#debug").scrollTop( $("#debug")[0].scrollHeight );	
+	}
+
+	function status(msg) {
+		msg = msg || "";
+		$("#status").html(msg).attr("class",msg);
+	}
+
+	function fwd( path ) {
+//	debug("fwd "+path );
+		$.ajax({
+			url:"/fwd/"+path,
+			success:function(data){
+			},
+			error:function(xhr,msg,err) {
+				debug("Error requesting (fwd) '"+path+"': "+xhr.responseText );
+			}
+		});
+	}
+
+	function set( host, port, cmd ) {
+		fwd(""+host+":"+port+"/"+escape(cmd));
+	}
+
+	$(document).ready(function(){
+
+		$.ajaxSetup({
+		  "error":function() {   
+		  	debug("ajax error not properly handled");
+		}});
+
+	});
+
+
+		</script>
+
+    </head> 
+ 
+    <body> 
+
+		<input type="submit" value="Black" onclick="set('thing3a',4220,'black');"></input>
+		<input type="submit" value="Script" onclick="set('thing3a',4220,'seq/all/show_script.xls')"></input>
+		<input type="submit" value="Birdseye mix" onclick="set('thing3a',4220,'birdseye'); "></input>
+
+		<div id="debug">
+		</div>
+		<div id="status">
+		</div>
+	</body>	
+</html>
+

@@ -1,0 +1,12 @@
+[
+{"host":"localhost",
+	"services":[
+		{ "port":4210, "service":"camera" },
+		{ "port":4230, "service":"recorder" },
+		{ "port":4220, "service":"display" },
+
+		{ "port":4200, "service":"hub" },
+		{ "port":4201, "service":"datahub" }
+	]
+}]
+
