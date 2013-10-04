@@ -4,7 +4,6 @@ var url = require("url");
 var util = require("util");
 var os = require("os");
 var querystring = require("querystring");
-var spawn = require("child_process").spawn;
 var connect = require("connect");
 var gstreamer = require("gstreamer-superficial");
 
@@ -21,9 +20,10 @@ var node = {
 //doSpawnRepeated( "../camera/camera", [node.driver,node.device,node.signalPort] );
 
 function startPipeline() {
-	pipeline = new gstreamer.Pipeline(
+	var pipeline = new gstreamer.Pipeline(
 		"v4l2src ! video/x-raw-yuv, width=640, height=480, framerate=(fraction)30"
 	//	"videotestsrc num-buffers=120 is-live=true"
+			+" ! neartime"
 			+" ! rate post-message=true dump=false update=.25"
 			+" ! tcpserversink sync=false buffers-soft-max=3 buffers-max=10 recover-policy=latest protocol=gdp port="+conf.signalPort
 			);
@@ -83,7 +83,7 @@ function startPipeline() {
 
 startPipeline();
 
-console.log("See my stream by using: gst-launch-0.10 tcpclientsrc protocol=gdp port="+conf.signalPort+" host=localhost ! ffmpegcolorspace ! xvimagesink sync=false");
+console.log("See my stream by using: gst-launch-0.10 tcpclientsrc protocol=gdp port="+conf.signalPort+" host=localhost ! ffmpegcolorspace ! ximagesink sync=false");
 
 
 
