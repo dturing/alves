@@ -6,6 +6,8 @@ var fs = require("fs");
 var http = require("http");
 var exec = require('child_process').exec;
 
+var conf = require("../config.js").hub;
+
 var appData = {
 	nodes:[]
 };
@@ -140,12 +142,14 @@ connect.createServer(
 				req.end();
 			});
 		}),
-	connect.static( __dirname + "/../data" ),
+	connect.static( conf.dataPath ),
 	connect.static( "client" ),
 	function( req,res,next ) {
 		res.writeHead(404, {"Content-Type":"text-plain"});
 		res.end( "no such resource\n" );
 	},
 	connect.errorHandler({ dumpExceptions: true })
-).listen(4200);
+).listen( conf.port );
+
+console.log("ALVES hub running on "+conf.host+":"+conf.port );
 

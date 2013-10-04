@@ -1,13 +1,14 @@
 module.exports = {
 	hub:{
 		host:"localhost",
-		port:"4200"
+		port:"4200",
+		dataPath:"/opt/badco/thingsseen/data"
 	},
 	
 	datahub:{
 		host:"localhost",
 		port:"4201",
-		dataPath:"/tmp",
+		dataPath:"/opt/badco/thingsseen/data",
 		defaultSessionName:"public",
 
 		db:{
@@ -30,7 +31,7 @@ module.exports = {
 		sourceHost: "localhost",
 		sourcePort: "4250",
 		defaultName: "cam",
-		dataPath: "/tmp",
+		dataPath: "/opt/badco/thingsseen/data",
 		extension: ".mkv"
 	}
 	

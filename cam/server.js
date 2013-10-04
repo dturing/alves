@@ -7,8 +7,7 @@ var querystring = require("querystring");
 var connect = require("connect");
 var gstreamer = require("gstreamer-superficial");
 
-var cfg_name = process.env.CONFIG || "config.js";
-var conf = require('./' + cfg_name);
+var conf = require("../config.js").cam;
 
 var node = {
 	name:os.hostname()+"_"+conf.defaultName,

@@ -26,7 +26,7 @@
 
 	function doQuery(query) {
 		$("#clips").empty();
-		var url = "datahub.lan:4201/query?"+query;
+		var url = location.hostname+":4201/query?"+query;
 		$.ajax({
 			url:"/fwd/"+url,
 			dataType:"json",

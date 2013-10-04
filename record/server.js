@@ -9,18 +9,14 @@ var connect = require("connect");
 var gstreamer = require("gstreamer-superficial");
 var mkdirp = require("mkdirp");
 require("date-format-lite");
+var http = require("http");
 
-var conf = {
-  sourceHost: "localhost",
-  sourcePort: "4250",
-  defaultName: "cam",
-  dataPath: "/tmp",
-  extension: ".mkv"
-};
+conf = require("../config.js").record;
 
 var node = {
 	name:os.hostname()+"_"+conf.defaultName,
 	openedBy:"",
+	tags:"",
 	recording:false
 };
 var child=undefined;
@@ -33,6 +29,11 @@ var gate;
 
 
 function submitFile( tmpFilename, frames, closed, finished ) {
+	if( frames<=5 ) {
+		console.log("Just",frames,"frames. Not submitting.");
+		return;
+	}
+
 	console.log("captured ", frames, "frames to", tmpFilename, "closed at", closed );
 	var now = new Date();
 	var day = now.format("DD");
@@ -41,22 +42,46 @@ function submitFile( tmpFilename, frames, closed, finished ) {
 	var date = now.format("YYYYMMDD");
 	var time = now.format("hhmmss");
 	
-	var path = conf.dataPath+"/"+year+"/"+month+"/"+date+"/"+node.name;
-	var filename = path+"/"+date+"-"+time+conf.extension;
+	var path = conf.dataPath;
+	var filename = year+"/"+month+"/"+date+"/"+node.name +"/"+ date+"-"+time+conf.extension;
 	console.log("mkdir", path );
 	mkdirp( path, function(err) {
 		if( err ) throw(err);
-		fs.rename( tmpFilename, filename, function( err ) {
+		fs.rename( tmpFilename, path+"/"+filename, function( err ) {
 			if( err ) throw(err);
-			console.log("Saved to", filename );
 			finished();
 		});
 	});
 	
-	/* FIXME port this:
+	var query = querystring.stringify({
+		filename:filename,
+		trig:node.openedBy,
+		camera:node.name,
+		tags:node.tags,
+		frames:frames,
+		date:now.format("YYYY-MM-DD hh:mm:ss")
+	});
+	console.log("submit",query);
+	var req = http.request({
+		host:"localhost",
+		port:"4201",
+		path:"/submit?"+query
+	}, function(response) {
+		var str = ''
+		response.on('data', function (chunk) {
+			str += chunk;
+		});
 
-		trace("submitting "+tmpFilename+", "+frames+" frames ("+path+"/"+filename+"), trig "+triggerName+", tags "+tags+", m "+m+", p "+p);
-		neko.FileSystem.rename( tmpFilename, path+"/"+filename );
+		response.on('end', function () {
+			console.log("submitted:",str);
+		});	
+	});
+	req.on("error",function(e) {
+		console.log(e);
+	});
+	req.end();
+	
+	/* FIXME port this:
 
 		var rq = new haxe.Http( BASE_URL+"/submit" );
 		rq.setParameter("filename",filename);
@@ -185,6 +210,7 @@ connect.createServer(
 					if( gate ) {
 						node.recording=false;
 						node.closeat = t;
+						node.tags = unescape(rq.tags);
 						gate.set("closeat", t);
 						reply(res,"ok");
 					} else {
